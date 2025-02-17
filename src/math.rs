@@ -1,39 +1,39 @@
 mod constants;
 
-use num::{BigUint, Integer, One, ToPrimitive, Zero};
-use num::bigint::RandBigInt;
-use rand::ThreadRng;
-use rand::Rng;
+use log::trace;
+use num::{BigInt, BigUint, Integer, Signed, ToPrimitive};
+use num::bigint::{RandBigInt, ToBigInt};
+use rand::prelude::ThreadRng;
 use crate::math::constants::{MILLER_RABIN_ROUNDS, SMALL_PRIMES};
 
-pub fn modular_pow(base: usize, exponent: &BigUint, modulus: &BigUint) -> BigUint {
-    let exponent = exponent;
+pub fn modular_pow(base: &BigUint, exponent: &BigUint, modulus: &BigUint) -> BigUint {
+    let mut exponent = exponent.clone();
     if modulus == &BigUint::from(1u8) {
         BigUint::ZERO
-    } else {
+    }
+    else {
         let mut result = BigUint::from(1u8);
         let mut base = base % modulus;
-        loop {
-            if exponent % &BigUint::from(2u8) == BigUint::from(1u8) {
+        let one = BigUint::from(1u8);
+        let two = &BigUint::from(2u8);
+        while exponent > BigUint::ZERO {
+            if &exponent % two == one {
                 result = result * &base % modulus;
             }
-            let exponent = &(exponent >> 1);
+            exponent = exponent >> 1;
             base = &base * &base % modulus;
-            if exponent <= &BigUint::ZERO {
-                break
-            }
         }
         result
     }
 }
 
-pub fn xgcd(a: &BigUint, b: &BigUint) -> (BigUint, BigUint, BigUint) {
+pub fn xgcd(a: &BigInt, b: &BigInt) -> (BigInt, BigInt, BigInt) {
     let mut a = a.clone();
     let mut b = b.clone();
-    let mut x0 = BigUint::from(1u8);
-    let mut x1 = BigUint::from(0u8);
-    let mut y0 = BigUint::from(0u8);
-    let mut y1 = BigUint::from(1u8);
+    let mut x0 = BigInt::from(1u8);
+    let mut x1 = BigInt::ZERO;
+    let mut y0 = BigInt::ZERO;
+    let mut y1 = BigInt::from(1u8);
     loop {
         let q = &a / &b;
         let a_old = a.clone();
@@ -45,46 +45,38 @@ pub fn xgcd(a: &BigUint, b: &BigUint) -> (BigUint, BigUint, BigUint) {
         let y0_old = y0;
         y0 = y1.clone();
         y1 = y0_old - &q * y1;
-        if b == BigUint::ZERO {
+        if b == BigInt::ZERO {
             return (a.clone(), x0.clone(), y0.clone())
         }
     }
 }
 
 pub fn modular_inverse(e: &BigUint, phi: &BigUint) -> BigUint {
-    let (_, x, _) = xgcd(e, phi);
-    x % phi
+    let phi = phi.to_bigint().unwrap();
+    let (_, x, _) = xgcd(&e.to_bigint().unwrap(), &phi);
+    let mut inverse = x % &phi;
+    while inverse.is_negative() {
+        inverse += &phi;
+    }
+    inverse.to_biguint().unwrap()
 }
 
 pub fn new_prime(bit_length: u64) -> BigUint {
     let mut rng = rand::thread_rng();
-
     loop {
         let candidate: BigUint = rng.gen_biguint(bit_length);
         if is_prime(&candidate) {
+            trace!("Successful Prime: {:?}", candidate);
             return candidate;
         }
+        trace!("Failed Prime: {:?}", candidate);
     }
 }
 
-// fn generate_random_of_length(rng: &mut ThreadRng, bit_size: usize) -> BigUint {
-//     let (digits, rem) = bit_size.div_rem(&32usize);
-//     let mut data = vec![u32::default(); digits + (rem > 0) as usize];
-//     rng.fill_bytes(data[..].as_byte_slice_mut());
-//     data.to_le();
-//     if rem > 0 {
-//         data[digits] >>= 32 - rem;
-//     }
-//     BigUint::new(data)
-// }
-
 pub fn is_prime(candidate: &BigUint) -> bool {
     let mut rng = rand::thread_rng();
-    if candidate == &BigUint::ZERO {
+    if candidate == &BigUint::ZERO || candidate == &BigUint::from(2u8) {
         false
-    }
-    else if candidate == &BigUint::from(2u8) {
-        true
     }
     else if candidate.is_even() {
         false
@@ -131,12 +123,12 @@ fn miller_rabin(rng: &mut ThreadRng, candidate: &BigUint, limit: usize) -> bool 
         //let basis = Int::sample_range(&two, &(candidate-&two));
 
         // (a^d mod n)
-        let mut x = a.modpow(&d, &candidate);
+        let mut x = modular_pow(&a, &d, &candidate);
 
         // Reference Implementation
         //let mut y = Int::modpow(&basis, &d, candidate);
 
-        if x == &BigUint::from(1u8) || x == (candidate - &BigUint::from(1u8)) {
+        if x == BigUint::from(1u8) || x == (candidate - &BigUint::from(1u8)) {
             continue
             // return true
         }
@@ -145,10 +137,7 @@ fn miller_rabin(rng: &mut ThreadRng, candidate: &BigUint, limit: usize) -> bool 
             let mut break_early = false;
             // Issue #1 | Changed one_usize to zero_usize; step (s-1) was equal to iterations-1 and therefore needed an extra iteration
             for _ in 0..step {
-                x = modular_pow(x, &BigUint::from(2u8), candidate);
-
-                // Reference Implementation
-                //y = Int::modpow(&y, &two, candidate);
+                x = modular_pow(&x, &BigUint::from(2u8), candidate);
 
                 if x == BigUint::from(1u8) {
                     return false
@@ -169,22 +158,14 @@ fn miller_rabin(rng: &mut ThreadRng, candidate: &BigUint, limit: usize) -> bool 
 }
 
 fn rewrite(n: &BigUint) -> (BigUint,BigUint) {
-    let one: BigUint = BigUint::one();
-    let two: BigUint = BigUint::one() + BigUint::one();
-    let mut s: BigUint = BigUint::zero();
-
-
-
-
-    // (n-1) becomes even number
+    let one: BigUint = BigUint::from(1u8);
+    let mut s: BigUint = BigUint::ZERO;
     let mut d: BigUint = n - &one;
 
-    // The Main Loop That Checks Whether The Number is even and then divides by 2 and stores a counter
-
     while d.is_even() == true {
-        d = d.div_floor(&two);
+        d = d.div_floor(&BigUint::from(2u8));
         s += &one;
     }
 
-    return (d.clone(),s)
+    (d.clone(), s)
 }

@@ -1,13 +1,20 @@
+#![feature(future_join)]
+extern crate core;
+
 mod rsa;
 mod math;
+mod cli;
+mod tests;
 
-use std::env;
 use std::error::Error;
-use crate::rsa::KeySet;
+use clap::builder::TypedValueParser;
+use clap::Parser;
+use crate::cli::Cli;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let args: Vec<String> = env::args().collect();
-    dbg!(args);
-    dbg!(KeySet::new());
-    Ok(())
+    let cli = Cli::parse();
+    env_logger::Builder::new()
+        .filter_level(cli.verbose.into())
+        .init();
+    cli.command.execute()
 }
