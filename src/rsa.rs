@@ -4,14 +4,14 @@ use std::fs::File;
 use std::future::join;
 use std::io::{BufRead, Read, Write};
 use crate::math::{modular_inverse, modular_pow, new_prime};
-use std::ops::Sub;
+use std::ops::{BitAnd, Sub};
 use std::path::PathBuf;
-use log::{debug, info, trace};
+use log::{debug, error, info, trace};
 use num::bigint::RandBigInt;
 use num::{BigUint, ToPrimitive};
 use rand::prelude::ThreadRng;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Key {
     exponent: BigUint,
     modulus: BigUint,
@@ -37,18 +37,30 @@ impl Key {
     }
 
     pub fn encrypt(&self, rng: &mut ThreadRng, input: u8) -> BigUint {
-        trace!("Running Enrypt on {}", input);
-        // let salt = rng.gen_biguint(self.salt_bits as u64);
+        trace!("Running enrypt: {}", input);
+        let salt = rng.gen_biguint(self.salt_bits as u64);
+        trace!("Salt: {:b}", &salt);
         let input = BigUint::from(input);
-        // let input = (input >> self.salt_bits) & salt;
+        trace!("Input: {:b}", &input);
+        let input = (input << self.salt_bits) | salt;
+        trace!("Salted value: {:b}", &input);
         modular_pow(&input, &self.exponent, &self.modulus)
     }
 
-    pub fn decrypt(&self, input: &BigUint) -> u8 {
-        trace!("Running Decrypt");
+    pub fn decrypt(&self, input: &BigUint) -> Result<u8, Box<dyn Error>> {
+        trace!("Running decrypt");
         let decrypted = modular_pow(input, &self.exponent, &self.modulus);
-        // (decrypted >> self.salt_bits).to_u8().unwrap()
-        decrypted.to_u8().unwrap()
+        trace!("Salted decrypted: {}", &decrypted);
+        let desalted = (&decrypted >> self.salt_bits).to_u8();
+        match desalted {
+            None => {
+                error!("Could not decrypt.\nInput: {}\nDecrypted: {:b}", &input, &decrypted);
+                Err("Decryption failed".into())
+            }
+            Some(desalted) => {
+                Ok(desalted)
+            }
+        }
     }
 
     pub fn save_to_file(&self, mut file: File) -> Result<(), Box<dyn Error>> {
@@ -66,7 +78,7 @@ impl Key {
     }
 
     fn load_key(name: &str) -> Result<Self, Box<dyn Error>> {
-        debug!("Loading Key: {}", name);
+        info!("Loading Key: {}", name);
         let key_root = KeySet::get_key_root()?;
         let file_name = key_root.join(name);
         trace!("Key File: {:?}", file_name);
@@ -120,5 +132,15 @@ impl KeySet {
             fs::create_dir(&key_root)?;
         }
         Ok(key_root)
+    }
+
+    #[cfg(test)]
+    pub fn get_public_key(&self) -> Key {
+        self.public_key.clone()
+    }
+
+    #[cfg(test)]
+    pub fn get_private_key(&self) -> Key {
+        self.private_key.clone()
     }
 }

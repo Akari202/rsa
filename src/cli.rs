@@ -8,7 +8,7 @@ use std::time::Instant;
 use log::{info, trace};
 use crate::rsa::{Key, KeySet};
 use num::BigUint;
-use tqdm::Iter;
+use rayon::prelude::*;
 
 #[derive(Parser)]
 #[command(name = "rsa")]
@@ -80,7 +80,7 @@ impl Commands {
                 let plaintext = fs::read_to_string(input)?;
                 trace!("Encrypting input text: {}", &plaintext);
                 let ciphertext: Vec<BigUint> = plaintext
-                    .chars()
+                    .par_chars()
                     .map(|i| {
                         public_key.encrypt(&mut rng, i as u8)
                     })
@@ -116,9 +116,9 @@ impl Commands {
                     .collect();
                 trace!("Decrypting input text: {:?}", &ciphertext);
                 let plaintext: String = ciphertext
-                    .iter()
+                    .par_iter()
                     .map(|i| {
-                        private_key.decrypt(i) as char
+                        private_key.decrypt(i).unwrap() as char
                     })
                     .collect::<String>();
                 match output {

@@ -4,6 +4,7 @@ extern crate core;
 mod rsa;
 mod math;
 mod cli;
+#[cfg(test)]
 mod tests;
 
 use std::error::Error;

@@ -117,28 +117,14 @@ fn miller_rabin(rng: &mut ThreadRng, candidate: &BigUint, limit: usize) -> bool 
 
     for _ in 0..limit {
         let a = rng.gen_biguint_range(&BigUint::from(2u8), &(candidate - &BigUint::from(1u8)));
-
-        // Reference Implementation
-        // Pretty sure `sample_range()` has an inclusive end
-        //let basis = Int::sample_range(&two, &(candidate-&two));
-
-        // (a^d mod n)
         let mut x = modular_pow(&a, &d, &candidate);
-
-        // Reference Implementation
-        //let mut y = Int::modpow(&basis, &d, candidate);
-
         if x == BigUint::from(1u8) || x == (candidate - &BigUint::from(1u8)) {
             continue
-            // return true
         }
         else {
-
             let mut break_early = false;
-            // Issue #1 | Changed one_usize to zero_usize; step (s-1) was equal to iterations-1 and therefore needed an extra iteration
             for _ in 0..step {
                 x = modular_pow(&x, &BigUint::from(2u8), candidate);
-
                 if x == BigUint::from(1u8) {
                     return false
                 }
@@ -146,15 +132,13 @@ fn miller_rabin(rng: &mut ThreadRng, candidate: &BigUint, limit: usize) -> bool 
                     break_early = true;
                     break;
                 }
-
             }
-
             if !break_early {
                 return false
             }
         }
     }
-    return true
+    true
 }
 
 fn rewrite(n: &BigUint) -> (BigUint,BigUint) {
