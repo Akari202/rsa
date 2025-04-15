@@ -80,7 +80,7 @@ impl Commands {
                 let plaintext = fs::read_to_string(input)?;
                 trace!("Encrypting input text: {}", &plaintext);
                 let ciphertext: Vec<BigUint> = plaintext
-                    .par_chars()
+                    .chars()
                     .map(|i| {
                         public_key.encrypt(&mut rng, i as u8)
                     })

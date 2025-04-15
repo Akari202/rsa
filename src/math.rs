@@ -35,6 +35,7 @@ pub fn xgcd(a: &BigInt, b: &BigInt) -> (BigInt, BigInt, BigInt) {
     let mut y0 = BigInt::ZERO;
     let mut y1 = BigInt::from(1u8);
     loop {
+        println!("x0: {}, y0: {}, x1: {}, y1: {}", &x0, &y0, &x1, &y1);
         let q = &a / &b;
         let a_old = a.clone();
         a = b.clone();
